@@ -1,0 +1,53 @@
+# .github/workflows/cron.yml
+#
+# Runs the job tracker every day at 9:00 AM UTC (2:30 PM IST).
+# Secrets needed (set in GitHub → Settings → Secrets → Actions):
+#   TELEGRAM_BOT_TOKEN
+#   TELEGRAM_CHAT_ID
+
+name: Daily Job Tracker
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 9:00 AM UTC = 2:30 PM IST, every day
+  workflow_dispatch:        # also allows manual trigger from GitHub UI
+
+jobs:
+  run-tracker:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Cache the SQLite DB between runs so we don't re-alert old jobs
+      - name: Restore jobs DB cache
+        uses: actions/cache@v4
+        with:
+          path: jobs.db
+          key: jobs-db-${{ runner.os }}
+
+      # 3. Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 5. Run the tracker
+      - name: Run job tracker
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      # 6. Save updated DB back to cache
+      - name: Save jobs DB cache
+        uses: actions/cache@v4
+        with:
+          path: jobs.db
+          key: jobs-db-${{ runner.os }}
